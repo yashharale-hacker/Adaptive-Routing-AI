@@ -254,9 +254,9 @@ function getCellCost(r, c) {
   if (cell.blocked) return Infinity;
   if (cell.gas) return 50; // Heavy penalty for gas zones
   let cost = cell.cost;
-  // Predictive penalty: if gas predicted to arrive, penalize
-  if (cell.gasPredicted) {
-    const horizon = parseInt(document.getElementById('predictHorizon').value);
+  // Predictive penalty: if gas predicted to arrive, penalize (only if horizon > 0)
+  const horizon = parseInt(document.getElementById('predictHorizon').value);
+  if (horizon > 0 && cell.gasPredicted) {
     cost += 15 * (1 - cell.gasAge / 10); // Graduated penalty
   }
   return cost;
@@ -409,7 +409,8 @@ class MinHeap {
 function computeReplan() {
   updatePowerGrid();
   const horizon = parseInt(document.getElementById('predictHorizon').value);
-  if (state.gasActive) predictGasSpread(horizon);
+  // Only predict gas spread if horizon > 0 (standard A* when horizon === 0)
+  if (state.gasActive && horizon > 0) predictGasSpread(horizon);
 
   const poweredHospitals = state.hospitals.filter(h => h.powered);
   const result = findPath(state.vehicle.r, state.vehicle.c, poweredHospitals);
