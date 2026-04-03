@@ -1,9 +1,0 @@
-# Navigate to the project folder
-cd /Users/yashharale/Desktop/Acads/AIFA/adaptive_routing_ai
-
-# Start a local web server (choose one):
-python -m http.server 8000    # Python
-npx http-server               # Node.js  
-php -S localhost:8000         # PHP
-
-# Then open: http://localhost:8000
