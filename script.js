@@ -10,6 +10,7 @@ let GRID = 16;
 let CELL = 0;
 let state = {};
 let initialState = null; // Store the initial city state for reset
+let preLaunchState = null; // Store state just before mission launch for reset
 let simInterval = null;
 let mode = 'view';
 let selectedHospital = null;
@@ -1027,6 +1028,7 @@ function generateCity() {
   tick = 0;
   state = initState();
   initialState = JSON.parse(JSON.stringify(state)); // Save initial state for reset
+  preLaunchState = null; // Clear pre-launch state for new city
   updatePowerGrid();
   computeReplan();
   updateStats();
@@ -1046,6 +1048,8 @@ function startSim() {
     document.getElementById('btnStart').textContent = '▶ LAUNCH MISSION';
     return;
   }
+  // Save the current state before launching (including manual edits)
+  preLaunchState = JSON.parse(JSON.stringify(state));
   if (!state.path || state.path.length === 0) {
     computeReplan();
   }
@@ -1075,7 +1079,9 @@ function stepSim() {
 function resetSim() {
   stopSim();
   tick = 0;
-  state = initialState ? JSON.parse(JSON.stringify(initialState)) : initState();
+  // Use pre-launch state if available (includes manual edits), otherwise initial state
+  const resetState = preLaunchState || initialState;
+  state = resetState ? JSON.parse(JSON.stringify(resetState)) : initState();
   // Rebuild powerEdges with correct object references
   if (state.hospitals && state.substations && state.powerPlant) {
     state.powerEdges = buildPowerGrid(state.hospitals, state.substations, state.powerPlant);
