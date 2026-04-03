@@ -5,8 +5,6 @@ A full interactive simulation demonstrating Predictive D* Lite with gas spread p
 ## Project Demo
 [![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](https://youtu.be/fZIDKlc0QNY)
 
-## Features
-
 ## Algorithm
 - Predictive D* Lite
 - Cost function: f(n) = g(n) + h(n) + p(n)
