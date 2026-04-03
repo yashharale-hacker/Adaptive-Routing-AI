@@ -30,8 +30,8 @@ A full interactive simulation demonstrating Predictive D* Lite with gas spread p
 - `styles.css` - All CSS styling (dark ops/tactical aesthetic)
 - `script.js` - Complete JavaScript engine (simulation, rendering, AI)
 
-## Demo
-![Project Demo](./path-to-your-demo.gif)
+## Project Demo
+[![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](fZIDKlc0QNY)
 
 ## How to Run
 
