@@ -12,6 +12,8 @@ let state = {};
 let initialState = null; // Store the initial city state for reset
 let simInterval = null;
 let mode = 'view';
+let selectedHospital = null;
+let selectedSubstation = null;
 let animFrame = null;
 let tick = 0;
 let simRunning = false;
@@ -366,6 +368,64 @@ function findPathNaive(startR, startC, goals) {
   return null;
 }
 
+function distanceToNearestGas(r, c) {
+  let best = Infinity;
+  for (let i = 0; i < GRID; i++) {
+    for (let j = 0; j < GRID; j++) {
+      if (state.grid[i][j].gas || state.grid[i][j].gasPredicted) {
+        best = Math.min(best, Math.abs(i - r) + Math.abs(j - c));
+      }
+    }
+  }
+  return best;
+}
+
+function findPathToGoal(startR, startC, goal) {
+  const open = new MinHeap();
+  const gScore = new Map();
+  const parent = new Map();
+  const startKey = `${startR},${startC}`;
+  gScore.set(startKey, 0);
+
+  const h = (r, c) => heuristic(r, c, goal.r, goal.c);
+  open.push({ f: h(startR, startC), g: 0, r: startR, c: startC });
+
+  let nodesExp = 0;
+  while (!open.isEmpty()) {
+    const curr = open.pop();
+    nodesExp++;
+    const key = `${curr.r},${curr.c}`;
+
+    if (curr.r === goal.r && curr.c === goal.c) {
+      const path = [];
+      let k = key;
+      while (k) {
+        const [r, c] = k.split(',').map(Number);
+        path.unshift({ r, c });
+        k = parent.get(k);
+      }
+      return { path, cost: curr.g, nodesExpanded: nodesExp };
+    }
+
+    const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    for (const [dr, dc] of dirs) {
+      const nr = curr.r + dr, nc = curr.c + dc;
+      if (nr < 0 || nr >= GRID || nc < 0 || nc >= GRID) continue;
+      const moveCost = getCellCost(nr, nc);
+      if (moveCost === Infinity) continue;
+
+      const newG = curr.g + moveCost;
+      const nkey = `${nr},${nc}`;
+      if (!gScore.has(nkey) || newG < gScore.get(nkey)) {
+        gScore.set(nkey, newG);
+        parent.set(nkey, key);
+        open.push({ f: newG + h(nr, nc), g: newG, r: nr, c: nc });
+      }
+    }
+  }
+  return null;
+}
+
 // Min Heap for A*
 class MinHeap {
   constructor() { this.data = []; }
@@ -409,38 +469,62 @@ class MinHeap {
 function computeReplan() {
   updatePowerGrid();
   const horizon = parseInt(document.getElementById('predictHorizon').value);
-  // Only predict gas spread if horizon > 0 (standard A* when horizon === 0)
   if (state.gasActive && horizon > 0) predictGasSpread(horizon);
 
   const poweredHospitals = state.hospitals.filter(h => h.powered);
-  const result = findPath(state.vehicle.r, state.vehicle.c, poweredHospitals);
+  if (poweredHospitals.length === 0) {
+    log('⚠ NO POWERED HOSPITALS AVAILABLE', 'danger');
+    state.missionFailed = true;
+    return false;
+  }
 
-  if (result) {
-    const oldTarget = state.targetHospital;
-    state.path = result.path;
-    state.pathIndex = 0;
-    state.targetHospital = result.targetHospital;
-    state.ourCost = result.cost;
+  // Evaluate each powered hospital separately and choose the safest optimization
+  let bestPlan = null;
+  let totalNodesExpanded = 0;
+  for (const h of poweredHospitals) {
+    const r = findPathToGoal(state.vehicle.r, state.vehicle.c, h);
+    if (!r) continue;
 
-    // Count paths avoided due to prediction
-    let avoided = 0;
-    for (const node of result.path) {
-      if (state.grid[node.r][node.c].gasPredicted) avoided++;
+    totalNodesExpanded += r.nodesExpanded || 0;
+
+    const gasDistance = distanceToNearestGas(h.r, h.c);
+    const safetyPenalty = Math.max(0, 6 - gasDistance) * 7; // Evaluate far from gas as better
+    const score = r.cost + safetyPenalty;
+
+    if (!bestPlan || score < bestPlan.score) {
+      bestPlan = { hospital: h, path: r.path, cost: r.cost, score, naiveCost: null };
     }
+  }
+  state.nodesExpanded = totalNodesExpanded;
 
-    // Get naive comparison
-    const naive = findPathNaive(state.vehicle.r, state.vehicle.c, poweredHospitals);
-    if (naive) state.naiveCost = naive.cost;
-
-    if (state.replans > 0 && (oldTarget?.id !== state.targetHospital?.id)) {
-      log(`⚡ TARGET CHANGED → Hospital #${state.targetHospital.id}`, 'warn');
-    }
-    return true;
-  } else {
+  if (!bestPlan) {
     log('⚠ NO VALID PATH FOUND — all routes blocked!', 'danger');
     state.missionFailed = true;
     return false;
   }
+
+  const oldTarget = state.targetHospital;
+  state.path = bestPlan.path;
+  state.pathIndex = 0;
+  state.targetHospital = bestPlan.hospital;
+  state.ourCost = bestPlan.cost;
+
+  // Count paths avoided due to prediction
+  let avoided = 0;
+  for (const node of state.path) {
+    if (state.grid[node.r][node.c].gasPredicted) avoided++;
+  }
+  state.pathsAvoided = avoided;
+
+  // Get naive comparison to same target
+  const naive = findPathNaive(state.vehicle.r, state.vehicle.c, [bestPlan.hospital]);
+  if (naive) state.naiveCost = naive.cost;
+
+  if (state.replans > 0 && (oldTarget?.id !== state.targetHospital?.id)) {
+    log(`⚡ TARGET CHANGED → Hospital #${state.targetHospital.id}`, 'warn');
+  }
+
+  return true;
 }
 
 function stepGasSpread() {
@@ -923,7 +1007,6 @@ function log(msg, type = 'info') {
   box.scrollTop = box.scrollHeight;
 
   // Switch to log tab if danger
-  if (type === 'danger') switchTab('log');
 }
 
 function switchTab(name) {
@@ -1013,11 +1096,15 @@ function resetSim() {
 
 function setMode(m) {
   mode = m;
-  ['modeView','modeBlock','modeGas'].forEach(id => {
+  selectedHospital = null;
+  selectedSubstation = null;
+  ['modeView','modeBlock','modeGas','modeAmbulance','modeHospital','modeSubstation'].forEach(id => {
     const btn = document.getElementById(id);
-    btn.style.borderColor = '';
-    btn.style.color = '';
-    btn.style.background = '';
+    if (btn) {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.background = '';
+    }
   });
   const activeBtn = document.getElementById(`mode${m.charAt(0).toUpperCase()+m.slice(1)}`);
   if (activeBtn) {
@@ -1038,20 +1125,70 @@ canvas.addEventListener('click', (e) => {
   const r = Math.floor((my - offsetY) / CELL2);
   if (r < 0 || r >= GRID || c < 0 || c >= GRID) return;
 
+  const cell = state.grid[r][c];
+
   if (mode === 'block') {
-    state.grid[r][c].blocked = !state.grid[r][c].blocked;
-    state.grid[r][c].gas = false;
+    cell.blocked = !cell.blocked;
+    cell.gas = false;
     computeReplan();
-    log(`✎ Road ${state.grid[r][c].blocked ? 'BLOCKED' : 'OPENED'} at (${r},${c})`, 'warn');
+    log(`✎ Road ${cell.blocked ? 'BLOCKED' : 'OPENED'} at (${r},${c})`, 'warn');
   } else if (mode === 'gas') {
-    state.grid[r][c].gas = true;
-    state.grid[r][c].cost = 50;
+    cell.gas = true;
+    cell.cost = 50;
     state.gasActive = true;
     document.getElementById('hazardStatus').textContent = '⚠ GAS LEAK ACTIVE';
     document.getElementById('hazardStatus').className = 'status-badge badge-danger pulse';
     computeReplan();
     log(`☣ Gas manually placed at (${r},${c})`, 'danger');
+  } else if (mode === 'ambulance') {
+    if (cell.blocked || cell.gas) {
+      log('🚑 Invalid ambulance location (blocked/gas).', 'warn');
+    } else {
+      state.vehicle.r = r;
+      state.vehicle.c = c;
+      computeReplan();
+      log(`🚑 Ambulance moved to (${r},${c})`, 'info');
+    }
+  } else if (mode === 'hospital') {
+    const existing = state.hospitals.find(h => h.r === r && h.c === c);
+    if (selectedHospital) {
+      if (cell.blocked || cell.gas) {
+        log('🏥 Cannot place hospital on blocked or gas location.', 'warn');
+      } else {
+        selectedHospital.r = r;
+        selectedHospital.c = c;
+        selectedHospital = null;
+        state.powerEdges = buildPowerGrid(state.hospitals, state.substations, state.powerPlant);
+        computeReplan();
+        log(`🏥 Hospital moved to (${r},${c})`, 'info');
+      }
+    } else if (existing) {
+      selectedHospital = existing;
+      log(`🏥 Hospital #${existing.id} selected. Click destination cell.`, 'info');
+    } else {
+      log('🏥 Click an existing hospital to select it, then click target cell.', 'dim');
+    }
+  } else if (mode === 'substation') {
+    const existing = state.substations.find(s => s.r === r && s.c === c);
+    if (selectedSubstation) {
+      if (cell.blocked || cell.gas) {
+        log('⚡ Cannot place substation on blocked or gas location.', 'warn');
+      } else {
+        selectedSubstation.r = r;
+        selectedSubstation.c = c;
+        selectedSubstation = null;
+        state.powerEdges = buildPowerGrid(state.hospitals, state.substations, state.powerPlant);
+        computeReplan();
+        log(`⚡ Substation moved to (${r},${c})`, 'info');
+      }
+    } else if (existing) {
+      selectedSubstation = existing;
+      log(`⚡ Substation #${existing.id} selected. Click destination cell.`, 'info');
+    } else {
+      log('⚡ Click an existing substation to select it, then click target cell.', 'dim');
+    }
   }
+
   updateStats();
   render();
 });
