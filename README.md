@@ -31,7 +31,7 @@ A full interactive simulation demonstrating Predictive D* Lite with gas spread p
 - `script.js` - Complete JavaScript engine (simulation, rendering, AI)
 
 ## Project Demo
-[![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](fZIDKlc0QNY)
+[![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](https://youtu.be/fZIDKlc0QNY)
 
 ## How to Run
 
