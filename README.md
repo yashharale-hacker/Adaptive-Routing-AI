@@ -2,22 +2,26 @@
 
 A full interactive simulation demonstrating Predictive D* Lite with gas spread prediction and dual-graph systems (road network + power grid).
 
+## Project Demo
+[![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](https://youtu.be/fZIDKlc0QNY)
+
 ## Features
 
-**Algorithm**: Predictive D* Lite
+## Algorithm
+- Predictive D* Lite
 - Cost function: f(n) = g(n) + h(n) + p(n)
 - g(n): actual path cost (with hazard penalties)
 - h(n): Manhattan distance heuristic to nearest powered hospital
 - p(n): predictive penalty for cells gas will reach in the future
 
-**Key Features**
+## Key Features
 - Dual-graph system: road network + power grid running simultaneously
 - Substations go offline when gas reaches them, cutting power to hospitals
 - Predictive gas spread: AI forecasts gas movement and avoids future danger zones
 - Dynamic replanning: path recomputed instantly when environment changes
 - Comparison vs Naive A*: shows cost savings over non-predictive A*
 
-**How to Use**
+## How to Use
 1. Click **LAUNCH MISSION** — gas spawns at tick 5 and vehicle starts navigating
 2. Use **BLOCK ROAD** mode + click cells to create manual blockages
 3. Use **PLACE GAS** mode + click to manually seed hazard zones
@@ -29,9 +33,6 @@ A full interactive simulation demonstrating Predictive D* Lite with gas spread p
 - `index.html` - Main HTML structure
 - `styles.css` - All CSS styling (dark ops/tactical aesthetic)
 - `script.js` - Complete JavaScript engine (simulation, rendering, AI)
-
-## Project Demo
-[![Watch the video](https://img.youtube.com/vi/fZIDKlc0QNY/0.jpg)](https://youtu.be/fZIDKlc0QNY)
 
 ## How to Run
 
