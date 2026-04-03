@@ -102,5 +102,3 @@ This simulation demonstrates:
 - Real-time simulation techniques
 - Interactive data visualization
 - Algorithm performance analysis
-
-Perfect for AI/CS courses studying search algorithms, planning, and multi-agent systems.
