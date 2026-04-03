@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adaptive Routing AI — Smart City Emergency Navigation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">ADAPTIVE<span>ROUTING</span> AI</div>
+    <div class="subtitle">Smart City Emergency Navigation System · Classical AI Course Project</div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge badge-active" id="systemStatus">● STANDBY</div>
+    <div class="status-badge badge-warn" id="hazardStatus">◈ NO HAZARD</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <div class="panel-title">Control Center</div>
+
+    <div>
+      <div class="stat-label" style="margin-bottom:8px">Simulation Control</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-success" id="btnStart" onclick="startSim()">▶ LAUNCH MISSION</button>
+        <button class="btn btn-warn" id="btnStep" onclick="stepSim()" disabled>⊳ STEP</button>
+        <button class="btn btn-danger" id="btnReset" onclick="resetSim()">↺ RESET</button>
+        <button class="btn" onclick="generateCity()">⊞ NEW CITY MAP</button>
+      </div>
+    </div>
+
+    <div class="speed-control">
+      <span>SPEED</span>
+      <input type="range" id="speedSlider" min="1" max="10" value="4" style="flex:1">
+      <span id="speedVal" style="color:var(--accent)">4x</span>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Algorithm</div>
+      <div style="font-family:'Orbitron',monospace;font-size:13px;color:var(--purple);margin-bottom:4px">Predictive D* Lite</div>
+      <div class="stat-sub">+ Gas Spread Forecasting<br>+ A* Heuristic Hybrid</div>
+    </div>
+
+    <div class="algo-box">
+      <span class="kw">f(n)</span> = <span class="val">g(n)</span> + <span class="val">h(n)</span> + <span class="kw">p(n)</span><br>
+      <span class="kw">g</span>: actual path cost<br>
+      <span class="kw">h</span>: Manhattan dist to hospital<br>
+      <span class="kw">p</span>: predicted hazard penalty<br>
+      <span class="kw">replan</span>: on environment Δ
+    </div>
+
+    <div>
+      <div class="stat-label" style="margin-bottom:6px">Grid Size</div>
+      <div class="grid-selector">
+        <select id="gridSize" onchange="resetSim()">
+          <option value="12">12×12 — Small</option>
+          <option value="16" selected>16×16 — Medium</option>
+          <option value="20">20×20 — Large</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="stat-label" style="margin-bottom:6px">Hazard Settings</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="metric-row">
+          <span>Spread Rate</span>
+          <input type="range" min="1" max="5" value="2" id="spreadRate" style="width:60px;accent-color:var(--gas)">
+          <span class="mv" id="spreadVal">2</span>
+        </div>
+        <div class="metric-row">
+          <span>Predict Horizon</span>
+          <input type="range" min="1" max="8" value="4" id="predictHorizon" style="width:60px;accent-color:var(--purple)">
+          <span class="mv" id="predictVal">4</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="stat-label" style="margin-bottom:6px">Legend</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;border-radius:50%"></div>Emergency Vehicle</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div>Hospital (Powered)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff2d55"></div>Hospital (No Power)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#39ff14;opacity:0.7"></div>Gas Leak Zone</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#39ff1430;border:1px dashed #39ff14"></div>Predicted Spread</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ffd60a"></div>Power Substation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#bf5af2"></div>Power Plant</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;opacity:0.3"></div>Planned Path</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: CANVAS -->
+  <div class="canvas-area">
+    <div class="scan-overlay"></div>
+    <div class="toolbar">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">MODE:</span>
+      <button class="btn" id="modeView" onclick="setMode('view')" style="border-color:var(--accent);color:var(--accent)">VIEW</button>
+      <button class="btn" id="modeBlock" onclick="setMode('block')">BLOCK ROAD</button>
+      <button class="btn" id="modeGas" onclick="setMode('gas')">PLACE GAS</button>
+      <div style="flex:1"></div>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)" id="tickLabel">TICK: 0</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent2)" id="phaseLabel">PHASE: INIT</span>
+    </div>
+    <canvas id="cityCanvas"></canvas>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel panel-right">
+    <div class="panel-title">Mission Analytics</div>
+
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('stats')">STATS</div>
+      <div class="tab" onclick="switchTab('hospitals')">HOSPITALS</div>
+      <div class="tab" onclick="switchTab('log')">LOG</div>
+    </div>
+
+    <!-- STATS TAB -->
+    <div class="tab-content active" id="tab-stats">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="stat-card">
+          <div class="stat-label">Path Cost</div>
+          <div class="stat-value" id="statCost">—</div>
+          <div class="stat-sub">weighted units</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Nodes Expanded</div>
+          <div class="stat-value" id="statNodes">—</div>
+          <div class="stat-sub">A* expansions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Replans</div>
+          <div class="stat-value warn" id="statReplans">0</div>
+          <div class="stat-sub">dynamic updates</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Gas Zones</div>
+          <div class="stat-value danger" id="statGas">0</div>
+          <div class="stat-sub">active cells</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Mission Progress</div>
+        <div style="margin:8px 0">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="stat-sub" id="progressLabel">Vehicle not deployed</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Power Grid</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px" id="powerGridStats">
+          <div class="metric-row"><span>Substations Active</span><span class="mv" id="statSubs">—</span></div>
+          <div class="metric-row"><span>Hospitals Powered</span><span class="mv good" id="statHospsPowered">—</span></div>
+          <div class="metric-row"><span>Grid Health</span><span class="mv" id="statGridHealth">—</span></div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Algorithm Performance</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">
+          <div class="metric-row"><span>Paths Avoided (Prediction)</span><span class="mv" id="statAvoided">0</span></div>
+          <div class="metric-row"><span>Avg Replan Time</span><span class="mv" id="statReplanTime">—</span></div>
+          <div class="metric-row"><span>Heuristic Accuracy</span><span class="mv good" id="statHeuristic">—</span></div>
+          <div class="metric-row"><span>Steps Taken</span><span class="mv" id="statSteps">0</span></div>
+        </div>
+      </div>
+
+      <div class="stat-card" id="comparisonBox" style="display:none">
+        <div class="stat-label">vs Naive A* (No Prediction)</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">
+          <div class="metric-row"><span>Our Path Cost</span><span class="mv good" id="cmpOurs">—</span></div>
+          <div class="metric-row"><span>Naive A* Cost</span><span class="mv warn" id="cmpNaive">—</span></div>
+          <div class="metric-row"><span>Savings</span><span class="mv good" id="cmpSavings">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOSPITALS TAB -->
+    <div class="tab-content" id="tab-hospitals">
+      <div id="hospitalList" style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+          Generate a city map first...
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tab-content" id="tab-log">
+      <div class="log-container" id="logBox"></div>
+      <button class="btn" onclick="document.getElementById('logBox').innerHTML=''" style="font-size:9px;padding:4px 10px">CLEAR LOG</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
