@@ -9,7 +9,7 @@
 <body>
 
 <header>
-  <div>
+  <div class="header-left">
     <div class="logo">ADAPTIVE<span>ROUTING</span> AI</div>
     <div class="subtitle">Smart City Emergency Navigation System · Classical AI Course Project</div>
   </div>
@@ -41,18 +41,35 @@
       <span id="speedVal" style="color:var(--accent)">4x</span>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-label">Algorithm</div>
-      <div style="font-family:'Orbitron',monospace;font-size:13px;color:var(--purple);margin-bottom:4px">Predictive D* Lite</div>
-      <div class="stat-sub">+ Gas Spread Forecasting<br>+ A* Heuristic Hybrid</div>
-    </div>
-
-    <div class="algo-box">
-      <span class="kw">f(n)</span> = <span class="val">g(n)</span> + <span class="val">h(n)</span> + <span class="kw">p(n)</span><br>
-      <span class="kw">g</span>: actual path cost<br>
-      <span class="kw">h</span>: Manhattan dist to hospital<br>
-      <span class="kw">p</span>: predicted hazard penalty<br>
-      <span class="kw">replan</span>: on environment Δ
+    <!-- ALGORITHM TOGGLE -->
+    <div class="algo-toggle-section">
+      <div class="stat-label" style="margin-bottom:8px">Algorithm</div>
+      <div class="algo-toggle-bar">
+        <button class="algo-btn active" id="algoBtnAstar" onclick="setAlgorithm('astar')">
+          <span class="algo-icon">A*</span>
+          <span class="algo-name">Predictive A*</span>
+        </button>
+        <button class="algo-btn" id="algoBtnDstar" onclick="setAlgorithm('dstar')">
+          <span class="algo-icon">D*</span>
+          <span class="algo-name">D* Lite</span>
+        </button>
+      </div>
+      <div class="algo-desc" id="algoDesc">
+        <div class="algo-box" id="algoFormulaAstar">
+          <span class="kw">f(n)</span> = <span class="val">g(n)</span> + <span class="val">h(n)</span> + <span class="kw">p(n)</span><br>
+          <span class="kw">g</span>: actual path cost<br>
+          <span class="kw">h</span>: Manhattan dist to goal<br>
+          <span class="kw">p</span>: predicted hazard penalty<br>
+          <span class="kw">replan</span>: full A* re-run on Δ
+        </div>
+        <div class="algo-box" id="algoFormulaDstar" style="display:none;">
+          <span class="kw">key(s)</span> = [<span class="val">min(g,rhs)+h</span>, <span class="val">min(g,rhs)</span>]<br>
+          <span class="kw">rhs(s)</span>: one-step lookahead<br>
+          <span class="kw">g(s)</span>: cost-so-far estimate<br>
+          <span class="kw">replan</span>: incremental repair only<br>
+          <span class="kw">p(n)</span>: predictive hazard cost
+        </div>
+      </div>
     </div>
 
     <div>
@@ -136,7 +153,7 @@
         <div class="stat-card">
           <div class="stat-label">Nodes Expanded</div>
           <div class="stat-value" id="statNodes">—</div>
-          <div class="stat-sub">A* expansions</div>
+          <div class="stat-sub">expansions</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Replans</div>
@@ -147,6 +164,22 @@
           <div class="stat-label">Gas Zones</div>
           <div class="stat-value danger" id="statGas">0</div>
           <div class="stat-sub">active cells</div>
+        </div>
+      </div>
+
+      <!-- Algorithm comparison card -->
+      <div class="stat-card algo-compare-card">
+        <div class="stat-label">Algorithm in Use</div>
+        <div class="algo-badge-display" id="algoBadgeDisplay">
+          <span class="algo-badge astar-badge">A* PREDICTIVE</span>
+        </div>
+        <div class="metric-row" style="margin-top:6px">
+          <span>Replan Strategy</span>
+          <span class="mv" id="replanStrategy">Full re-run</span>
+        </div>
+        <div class="metric-row">
+          <span>Nodes Updated</span>
+          <span class="mv" id="statNodesUpdated">—</span>
         </div>
       </div>
 
@@ -162,7 +195,7 @@
 
       <div class="stat-card">
         <div class="stat-label">Power Grid</div>
-        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px" id="powerGridStats">
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">
           <div class="metric-row"><span>Substations Active</span><span class="mv" id="statSubs">—</span></div>
           <div class="metric-row"><span>Hospitals Powered</span><span class="mv good" id="statHospsPowered">—</span></div>
           <div class="metric-row"><span>Grid Health</span><span class="mv" id="statGridHealth">—</span></div>
@@ -179,8 +212,8 @@
         </div>
       </div>
 
-      <div class="stat-card" id="comparisonBox" style="display:none">
-        <div class="stat-label">vs Naive A* (No Prediction)</div>
+      <div class="stat-card" id="comparisonBox">
+        <div class="stat-label">A* vs D* Lite Comparison</div>
         <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">
           <div class="metric-row"><span>Our Path Cost</span><span class="mv good" id="cmpOurs">—</span></div>
           <div class="metric-row"><span>Naive A* Cost</span><span class="mv warn" id="cmpNaive">—</span></div>
